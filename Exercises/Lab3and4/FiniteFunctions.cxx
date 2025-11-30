@@ -1,10 +1,11 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include "FiniteFunctions.h"
 #include <filesystem> //To check extensions in a nice way
+#include <cmath>      // for floor
+#include "FiniteFunctions.h"
 
-#include "gnuplot-iostream.h" //Needed to produce plots (not part of the course) 
+#include "gnuplot-iostream.h" //Needed to produce plots (not part of the course)
 
 using std::filesystem::path;
 
@@ -13,14 +14,14 @@ FiniteFunction::FiniteFunction(){
   m_RMin = -5.0;
   m_RMax = 5.0;
   this->checkPath("DefaultFunction");
-  m_Integral = NULL;
+  m_Integral = 0.0;
 }
 
 //initialised constructor
 FiniteFunction::FiniteFunction(double range_min, double range_max, std::string outfile){
   m_RMin = range_min;
   m_RMax = range_max;
-  m_Integral = NULL;
+  m_Integral = 0.0;
   this->checkPath(outfile); //Use provided string to name output files
 }
 
@@ -28,49 +29,62 @@ FiniteFunction::FiniteFunction(double range_min, double range_max, std::string o
 //SUPACPP note: They syntax of the plotting code is not part of the course
 FiniteFunction::~FiniteFunction(){
   Gnuplot gp; //Set up gnuplot object
-  this->generatePlot(gp); //Generate the plot and save it to a png using "outfile" for naming 
+  this->generatePlot(gp); //Generate the plot and save it to a png using "outfile" for naming
 }
 
 /*
 ###################
 //Setters
 ###################
-*/ 
-void FiniteFunction::setRangeMin(double RMin) {m_RMin = RMin;};
-void FiniteFunction::setRangeMax(double RMax) {m_RMax = RMax;};
-void FiniteFunction::setOutfile(std::string Outfile) {this->checkPath(Outfile);};
+*/
+void FiniteFunction::setRangeMin(double RMin) {m_RMin = RMin;}
+void FiniteFunction::setRangeMax(double RMax) {m_RMax = RMax;}
+void FiniteFunction::setOutfile(std::string Outfile) {this->checkPath(Outfile);}
 
 /*
 ###################
 //Getters
 ###################
-*/ 
-double FiniteFunction::rangeMin() {return m_RMin;};
-double FiniteFunction::rangeMax() {return m_RMax;};
+*/
+double FiniteFunction::rangeMin() {return m_RMin;}
+double FiniteFunction::rangeMax() {return m_RMax;}
 
 /*
 ###################
 //Function eval
 ###################
-*/ 
-double FiniteFunction::invxsquared(double x) {return 1/(1+x*x);};
-double FiniteFunction::callFunction(double x) {return this->invxsquared(x);}; //(overridable)
+*/
+double FiniteFunction::invxsquared(double x) {return 1/(1+x*x);}
+double FiniteFunction::callFunction(double x) {return this->invxsquared(x);} //(overridable)
 
 /*
 ###################
 Integration by hand (output needed to normalise function when plotting)
 ###################
-*/ 
+*/
 double FiniteFunction::integrate(int Ndiv){ //private
-  //ToDo write an integrator
-  return -99;  
+  // نقرّب التكامل باستخدام Riemann sum على المجال [m_RMin, m_RMax]
+
+  double range = m_RMax - m_RMin;                     // طول المجال
+  double dx    = range / static_cast<double>(Ndiv);   // عرض كل خطوة
+  double x     = m_RMin;                              // نبدأ من الحد الأدنى
+  double sum   = 0.0;                                 // هنا نجمع f(x)*dx
+
+  for (int i = 0; i < Ndiv; i++) {
+    double fx = this->callFunction(x); // f(x)
+    sum += fx * dx;                    // نجمع مساحة المستطيل الصغير
+    x   += dx;                         // نتحرك لنقطة x التالية
+  }
+
+  return sum; // تقريب للتكامل ∫ f(x) dx
 }
+
 double FiniteFunction::integral(int Ndiv) { //public
   if (Ndiv <= 0){
     std::cout << "Invalid number of divisions for integral, setting Ndiv to 1000" <<std::endl;
     Ndiv = 1000;
   }
-  if (m_Integral == NULL || Ndiv != m_IntDiv){
+  if (m_Integral == 0.0 || Ndiv != m_IntDiv){
     m_IntDiv = Ndiv;
     m_Integral = this->integrate(Ndiv);
     return m_Integral;
@@ -80,15 +94,15 @@ double FiniteFunction::integral(int Ndiv) { //public
 
 /*
 ###################
-//Helper functions 
+//Helper functions
 ###################
 */
 // Generate paths from user defined stem
 void FiniteFunction::checkPath(std::string outfile){
- path fp = outfile;
- m_FunctionName = fp.stem(); 
- m_OutData = m_FunctionName+".data";
- m_OutPng = m_FunctionName+".png";
+  path fp = outfile;
+  m_FunctionName = fp.stem();
+  m_OutData = m_FunctionName+".data";
+  m_OutPng = m_FunctionName+".png";
 }
 
 //Print (overridable)
@@ -105,7 +119,7 @@ void FiniteFunction::printInfo(){
 ###################
 */
 
-//Hack because gnuplot-io can't read in custom functions, just scan over function and connect points with a line... 
+//Hack because gnuplot-io can't read in custom functions, just scan over function and connect points with a line...
 void FiniteFunction::plotFunction(){
   m_function_scan = this->scanFunction(10000);
   m_plotfunction = true;
@@ -124,7 +138,6 @@ void FiniteFunction::plotData(std::vector<double> &points, int Nbins, bool isdat
   }
 }
 
-
 /*
   #######################################################################################################
   ## SUPACPP Note:
@@ -132,7 +145,7 @@ void FiniteFunction::plotData(std::vector<double> &points, int Nbins, bool isdat
   ## In theory you shouldn't have to touch them
   ## However it might be helpful to read through them and understand what they are doing
   #######################################################################################################
- */
+*/
 
 //Scan over range of function using range/Nscan steps (just a hack so we can plot the function)
 std::vector< std::pair<double,double> > FiniteFunction::scanFunction(int Nscan){
@@ -140,12 +153,12 @@ std::vector< std::pair<double,double> > FiniteFunction::scanFunction(int Nscan){
   double step = (m_RMax - m_RMin)/(double)Nscan;
   double x = m_RMin;
   //We use the integral to normalise the function points
-  if (m_Integral == NULL) {
+  if (m_Integral == 0.0) {
     std::cout << "Integral not set, doing it now" << std::endl;
     this->integral(Nscan);
     std::cout << "integral: " << m_Integral << ", calculated using " << Nscan << " divisions" << std::endl;
   }
-  //For each scan point push back the x and y values 
+  //For each scan point push back the x and y values
   for (int i = 0; i < Nscan; i++){
     function_scan.push_back( std::make_pair(x,this->callFunction(x)/m_Integral));
     x += step;
@@ -157,7 +170,7 @@ std::vector< std::pair<double,double> > FiniteFunction::scanFunction(int Nscan){
 std::vector< std::pair<double,double> > FiniteFunction::makeHist(std::vector<double> &points, int Nbins){
 
   std::vector< std::pair<double,double> > histdata; //Plottable output shape: (midpoint,frequency)
-  std::vector<int> bins(Nbins,0); //vector of Nbins ints with default value 0 
+  std::vector<int> bins(Nbins,0); //vector of Nbins ints with default value 0
   int norm = 0;
   for (double point : points){
     //Get bin index (starting from 0) the point falls into using point value, range, and Nbins
@@ -181,7 +194,7 @@ void FiniteFunction::generatePlot(Gnuplot &gp){
 
   if (m_plotfunction==true && m_plotdatapoints==true && m_plotsamplepoints==true){
     gp << "set terminal pngcairo\n";
-    gp << "set output 'Outputs/png/"<<m_FunctionName<<".png'\n"; 
+    gp << "set output 'Outputs/png/"<<m_FunctionName<<".png'\n";
     gp << "set xrange ["<<m_RMin<<":"<<m_RMax<<"]\n";
     gp << "set style line 1 lt 1 lw 2 pi 1 ps 0\n";
     gp << "plot '-' with linespoints ls 1 title '"<<m_FunctionName<<"', '-' with points ps 2 lc rgb 'blue' title 'sampled data', '-' with points ps 1 lc rgb 'black' pt 7 title 'data'\n";
@@ -191,7 +204,7 @@ void FiniteFunction::generatePlot(Gnuplot &gp){
   }
   else if (m_plotfunction==true && m_plotdatapoints==true){
     gp << "set terminal pngcairo\n";
-    gp << "set output 'Outputs/png/"<<m_FunctionName<<".png'\n"; 
+    gp << "set output 'Outputs/png/"<<m_FunctionName<<".png'\n";
     gp << "set xrange ["<<m_RMin<<":"<<m_RMax<<"]\n";
     gp << "set style line 1 lt 1 lw 2 pi 1 ps 0\n";
     gp << "plot '-' with linespoints ls 1 title '"<<m_FunctionName<<"', '-' with points ps 1 lc rgb 'black' pt 7 title 'data'\n";
@@ -200,7 +213,7 @@ void FiniteFunction::generatePlot(Gnuplot &gp){
   }
   else if (m_plotfunction==true && m_plotsamplepoints==true){
     gp << "set terminal pngcairo\n";
-    gp << "set output 'Outputs/png/"<<m_FunctionName<<".png'\n"; 
+    gp << "set output 'Outputs/png/"<<m_FunctionName<<".png'\n";
     gp << "set xrange ["<<m_RMin<<":"<<m_RMax<<"]\n";
     gp << "set style line 1 lt 1 lw 2 pi 1 ps 0\n";
     gp << "plot '-' with linespoints ls 1 title '"<<m_FunctionName<<"', '-' with points ps 2 lc rgb 'blue' title 'sampled data'\n";
@@ -209,7 +222,7 @@ void FiniteFunction::generatePlot(Gnuplot &gp){
   }
   else if (m_plotfunction==true){
     gp << "set terminal pngcairo\n";
-    gp << "set output 'Outputs/png/"<<m_FunctionName<<".png'\n"; 
+    gp << "set output 'Outputs/png/"<<m_FunctionName<<".png'\n";
     gp << "set xrange ["<<m_RMin<<":"<<m_RMax<<"]\n";
     gp << "set style line 1 lt 1 lw 2 pi 1 ps 0\n";
     gp << "plot '-' with linespoints ls 1 title 'function'\n";
@@ -218,7 +231,7 @@ void FiniteFunction::generatePlot(Gnuplot &gp){
 
   else if (m_plotdatapoints == true){
     gp << "set terminal pngcairo\n";
-    gp << "set output 'Outputs/png/"<<m_FunctionName<<".png'\n"; 
+    gp << "set output 'Outputs/png/"<<m_FunctionName<<".png'\n";
     gp << "set xrange ["<<m_RMin<<":"<<m_RMax<<"]\n";
     gp << "plot '-' with points ps 1 lc rgb 'black' pt 7 title 'data'\n";
     gp.send1d(m_data);
@@ -226,9 +239,52 @@ void FiniteFunction::generatePlot(Gnuplot &gp){
 
   else if (m_plotsamplepoints == true){
     gp << "set terminal pngcairo\n";
-    gp << "set output 'Outputs/png/"<<m_FunctionName<<".png'\n"; 
+    gp << "set output 'Outputs/png/"<<m_FunctionName<<".png'\n";
     gp << "set xrange ["<<m_RMin<<":"<<m_RMax<<"]\n";
     gp << "plot '-' with points ps 2 lc rgb 'blue' title 'sampled data'\n";
     gp.send1d(m_samples);
   }
+}
+#include <random>
+
+std::vector<double> FiniteFunction::metropolisSample(int Nsamples,
+                                                     double start,
+                                                     double proposalWidth)
+{
+    std::vector<double> samples;
+    samples.reserve(Nsamples);
+
+    std::mt19937 gen(42); 
+    std::uniform_real_distribution<double> u01(0.0, 1.0);
+    std::normal_distribution<double> proposal(0.0, proposalWidth);
+
+    double x  = start;
+    double fx = this->callFunction(x);
+
+    if (x < m_RMin || x > m_RMax) {
+        x  = m_RMin;
+        fx = this->callFunction(x);
+    }
+
+    for (int i = 0; i < Nsamples; ++i) {
+
+        double x_new = x + proposal(gen);
+
+        if (x_new < m_RMin || x_new > m_RMax) {
+            samples.push_back(x);
+            continue;
+        }
+
+        double f_new = this->callFunction(x_new);
+        double alpha = (fx > 0.0) ? (f_new / fx) : 0.0;
+
+        if (alpha >= 1.0 || u01(gen) < alpha) {
+            x  = x_new;
+            fx = f_new;
+        }
+
+        samples.push_back(x);
+    }
+
+    return samples;
 }

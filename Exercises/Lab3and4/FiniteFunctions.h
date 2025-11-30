@@ -23,6 +23,10 @@ public:
   void plotData(std::vector<double> &points, int NBins, bool isdata=true); //NB! use isdata flag to pick between data and sampled distributions
   virtual void printInfo(); //Dump parameter info about the current function (Overridable)
   virtual double callFunction(double x); //Call the function with value x (Overridable)
+  // Metropolis sampling من الدالة
+  std::vector<double> metropolisSample(int Nsamples,
+                                       double start,
+                                       double proposalWidth);
 
   //Protected members can be accessed by child classes but not users
 protected:
